@@ -1,0 +1,141 @@
+##############################################################################
+#
+#   classification/metadata/main.cf - EECS OpenStack metadata configuration
+#   Maintained: Ben Roose, ver 0.1
+#
+###############################################################################
+
+
+
+# PROTIP: Use body file control to help make modular policy.
+# "There can be only one" body common control per policy entry (promises.cf,update.cf)
+
+# TESTING ONLY:INPUT STANDARD LIBRARY and HOST CLASSIFICATION (Remove after testing)
+body file control
+{
+      inputs => { "$(sys.libdir)/stdlib.cf",
+		  "$(sys.workdir)/inputs/services/eecs/classification/host_role/main.cf" };
+}
+
+######################################################################
+# Public entry point: 
+######################################################################
+
+# NOTES for future development of configuration:
+# 1.
+
+
+bundle agent os_metadata
+# @description: 
+{
+  vars:
+      ## GLOBAL PARAMETERS
+      "wget_cmd" string => "/usr/bin/wget -q --timeout=10";
+      
+      ## OPENSTACK METADATA
+      "openstack_metadata_link" string => "http://169.254.169.254/openstack/latest/meta_data.json";
+      "openstack_metadata_cache" string => "meta_data.json";
+      "openstack_cache_dir" string => "$(sys.workdir)/state/openstack/";
+
+    # cslab.metadata_cache_exists.(copy_metadata_repaired|copy_metadata_kept)::
+    #   "openstack_metadata" data => readjson("$(openstack_cache_dir)$(openstack_metadata_cache)",1M),
+    #     comment => "pull in external json file from OpenStack Nova API";
+
+    #   "json_str_openstack_metadata" string => format("%S", "openstack_metadata");
+
+    #   # "cluster_host_data"
+    #   #   data => mergedata( "openstack_metadata[meta][cluster_ips]" ),
+    #   #   comment => "create data subset of cluster host ip addresses from openstack metadata";
+
+    #   # "clean_cluster_string1" string => regex_replace( "$(cluster_host_data)", "..(.+)..", "\1", "" );
+    #   # "clean_cluster_string2" string => regex_replace( "$(clean_cluster_string1)", "\"\", ", "", "" );
+    #   # "cluster_ip_list" slist => splitstring( "$(clean_cluster_string2)", "\", \"", "1000" ),
+    #   #   comment => "list of cluster host ips comes in from openstack metadata as a noisy string,
+    #   #               since this parameter is defined as a comma_limited_list in openstack heat templates.
+    #   #               Need to clean it by removing start/end chars, null entries, then split ips into a list"; 
+
+    #   "ballastd_host_data"
+    #     data => mergedata( "openstack_metadata[meta][bastion_ip]" ),
+    #     comment => "create data subset of bastion ip address from openstack metadata";
+
+    #   "ballastd_ip" string => "$(ballastd_host_data)",
+    #     comment => "create data subset of bastion ip address from openstack metadata";
+
+    metadata_cache_exists.(copy_metadata_repaired|copy_metadata_kept)::
+      "openstack_metadata" data => readjson("$(openstack_cache_dir)$(openstack_metadata_cache)",1M),
+        comment => "pull in external json file from OpenStack Nova API";
+
+      "json_str_openstack_metadata" string => format("%S", "openstack_metadata");
+
+      # "meta_data"
+      #   data => mergedata( "openstack_metadata[meta]" ),
+      #   comment => "create data subset of meta from openstack metadata";
+
+      "ballastd_ip"
+        string => "$(openstack_metadata[meta][ballastd_ip])",
+        comment => "pull in ballast ip address from openstack metadata";
+
+      # "cluster_name"
+      #   string => "$(openstack_metadata[meta][cluster_name])",
+      #   comment => "pull in cluster name from openstack metadata";
+
+      "cluster_type"
+        string => "$(openstack_metadata[meta][cluster_type])",
+        comment => "pull in cluster type from openstack metadata";
+     
+  classes:      
+      "openstack_cache_dir_exists"
+      	expression => fileexists( "$(openstack_cache_dir)/." );
+
+      "metadata_cache_exists"
+      	expression => fileexists( "$(openstack_cache_dir)$(openstack_metadata_cache)" );
+
+      # "have_cluster_name"
+      # 	expression => isvariable( "cluster_name" );
+
+      "have_cluster_type"
+      	expression => isvariable( "cluster_type" );
+
+      "have_ballastd_ip"
+      	expression => isvariable( "ballastd_ip" );
+
+  files:
+    (os_tenant_cluster|os_tenant_minimal_cluster)::
+      "$(openstack_cache_dir)/."
+        create => "true";
+      
+  commands:
+    (os_tenant_cluster|os_tenant_minimal_cluster).openstack_cache_dir_exists::
+      "$(wget_cmd)"
+        args => "-O $(openstack_cache_dir)$(openstack_metadata_cache) $(openstack_metadata_link)",
+        contain => in_dir_shell("$(openstack_cache_dir)"),
+        classes => results("bundle", "copy_metadata"),
+        comment => "download metadata file from openstack nova api link";
+
+  methods:
+
+  reports:
+    (inform_mode|verbose_mode)::
+      "$(this.bundle): Activated";
+
+    (DEBUG|DEBUG_metadata)::
+      "=== $(this.bundle) ===";
+
+      # "initial openstack_metadata: $(json_str_openstack_metadata)";
+      # "cleaned string 1 from openstack metadata: $(clean_cluster_string1)";
+      # "cleaned string 2 from openstack metadata: $(clean_cluster_string2)";
+      # "cluster metadata: $(meta_data)";
+      
+      # "cluster name from openstack metadata: $(cluster_name)"
+      # 	ifvarclass => "have_cluster_name";
+
+      "cluster name from openstack metadata: $(cluster_type)"
+	ifvarclass => "have_cluster_type";
+
+      "ballastd_ip from openstack metadata: $(ballastd_ip)"
+        ifvarclass => "have_ballastd_ip";
+
+      # "This host's first IP address: $(sys.ipv4)";
+}
+
+######################################################################
