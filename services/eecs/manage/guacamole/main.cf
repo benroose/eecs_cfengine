@@ -151,17 +151,24 @@ bundle agent guacamole_vars
 {
   vars:
     ## INSTALL PARAMETERS FOR ALL SOFTWARE
-    debian::
-
+    debian.!ubuntu::
       "dependent_packages" slist => { "build-essential", "binutils", "libcairo2-dev", "libjpeg-dev", "libpng++-dev", "libpng-tools", "libjpeg62-turbo-dev", "libturbojpeg0-dev", "libpng-dev", "libpng12-dev", "libossp-uuid-dev", "libavcodec-dev", "libavutil-dev", "libswscale-dev", "libfreerdp-dev", "libpango1.0-dev", "libtelnet-dev", "libssh2-1-dev", "libvncserver-dev", "libpulse-dev", "libssl-dev", "libvorbis-dev", "libwebp-dev", "mysql-server", "mysql-client", "mysql-common", "mysql-utilities", "tomcat8", "freerdp", "ghostscript", "jq", "wget", "curl", "autotools-dev", "maven", "default-jdk", },
         comment => "guacamole depends on build tools for make from source, mysql for backend DB, tomcat for java support, etc. ghostscript is needed for PDF download when printing at RDP remote host";
 
+    ubuntu::
+      "dependent_packages" slist => { "openjdk-8-jdk", "build-essential", "binutils", "libcairo2-dev", "libjpeg-dev", "libpng++-dev", "libpng-tools", "libjpeg-turbo8-dev", "libturbojpeg0-dev", "libpng-dev", "libossp-uuid-dev", "libavcodec-dev", "libavutil-dev", "libswscale-dev", "libfreerdp-dev", "libpango1.0-dev", "libtelnet-dev", "libssh2-1-dev", "libvncserver-dev", "libpulse-dev", "libssl-dev", "libvorbis-dev", "libwebp-dev", "mysql-server", "mysql-client", "mysql-common", "mysql-utilities", "libmysql-java", "tomcat8", "freerdp-x11", "ghostscript", "dpkg-dev", "jq", "wget", "curl", "autotools-dev", "maven", },
+        comment => "guacamole depends on build tools for make from source, mysql for backend DB, tomcat for java support, etc. ghostscript is needed for PDF download when printing at RDP remote host";
+
       # NEEDED TO FIND ALT PACKAGES FOR ORIGINALLY REQUIRED PACKAGES IN TUTORIAL SCRIPT:
-      # libjpeg-turbo8-dev (using libjpeg-dev and libturbojpeg0-dev)
+      # libjpeg-turbo8-dev (using libjpeg-dev and libturbojpeg0-dev in debian)
       # libpng12-dev (using libpng-dev and libpng++-dev and libpng-tools?)
       # adding binutils
       # adding maven and default-jdk for building guacamole-client java packages from source too
       # NOTE: autotools-dev are needed packages to build from pre-release source only!
+
+      # looks like maven has issues compiling guac with openjdk11 (default in ubuntu 18.04), needed to manually run "apt-get purge openjdk-*" and drop down to openjdk-8-jdk
+      # MAY WANT TO PULL DOWN THE JAR FILES FROM GUAC UPSTREAM MANUALLY AND REMOVE THE MAVEN CLIENT BUILD
+      # THEN default-jdk (version 11) CAN BE USED ON SERVER
       
       "server_exec_file" string =>"/usr/local/sbin/guacd";
 

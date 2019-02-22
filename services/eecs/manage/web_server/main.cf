@@ -11,13 +11,6 @@
 # PROTIP: Use body file control to help make modular policy.
 # "There can be only one" body common control per policy entry (promises.cf,update.cf)
 
-# TESTING ONLY:INPUT STANDARD LIBRARY and HOST CLASSIFICATION (Remove after testing)
-body file control
-{
-      inputs => { "$(sys.libdir)/stdlib.cf",
-		  "$(sys.workdir)/inputs/services/eecs/classification/host_role/main.cf" };
-}
-
 ######################################################################
 # Public entry point: web_server(on) OR web_server(off)
 ######################################################################
@@ -171,13 +164,14 @@ bundle agent web_server_vars
 
     ## EFF LET'S ENCRYPT CERTBOT CONFIGURATION PARAMETERS
       "certbot_config_file" string => "/etc/letsencrypt/cli.ini";
-      "certbot_config_template" string => "$(this.promise_dirname)/data/certbot_config.tpl.conf";
+      "certbot_config_template" string => "$(this.promise_dirname)/data/certbot_config.mustache";
       "certbot_cert_dir" string => "/etc/letsencrypt/live/"; #certs are in each domain subdirectory
 
       "certbot_include_path" string => "/etc/letsencrypt/options-ssl-apache.conf";
       "certbot_cert_chain_file" string => "fullchain.pem";
       "certbot_cert_key_file" string => "privkey.pem";
       "certbot_registered_email" string => "$(global.root_email)";
+      # "certbot_domains_to_register" string => "$(classify_host.host_purpose).$(global.cs_domain)",
       "certbot_domains_to_register" string => "$(sys.uqhost).$(global.cs_domain)",
       # "certbot_domains_to_register" string => "$(sys.fqhost)",
       comment => "domain hostname defined using the fully qualified host var";
@@ -185,7 +179,7 @@ bundle agent web_server_vars
       "apache_serveradmin_email" string => "$(global.root_email)";
       "apache_available_sites_dir" string => "/etc/apache2/sites-available/";
       "apache_site_index_file" string => "index.html";
-      "apache_site_index_template" string => "$(this.promise_dirname)/data/default_index_html.tpl.txt";
+      "apache_site_index_template" string => "$(this.promise_dirname)/data/default_index_html.mustache";
       "apache_default_site" string => "000-default.conf";
 
       "apache_root_dir" string => "/var/www/";
@@ -195,13 +189,14 @@ bundle agent web_server_vars
     ## GUACAMOLE PROXY VIRTUAL HOST CONFIGURATION PARAMETERS
       # "site_data[guac][domain_hostname]" string => "testing-gateway.cs.wichita.edu";
     
+      # "site_data[guac][domain_hostname]" string => "$(classify_host.host_purpose).$(global.cs_domain)",
       "site_data[guac][domain_hostname]" string => "$(sys.uqhost).$(global.cs_domain)",
       # "site_data[guac][domain_hostname]" string => "$(sys.fqhost)",
       comment => "domain hostname defined using the sys var of fully qualified hostname";
 
       "site_data[guac][site_conf_file]" string => "guacamole.conf";
       "site_data[guac][site_conf_cache]" string => "$(sys.workdir)/state/web_sites/guacamole_proxy.conf";
-      "site_data[guac][site_conf_template]" string => "$(this.promise_dirname)/data/guacamole_proxy.tpl.conf";
+      "site_data[guac][site_conf_template]" string => "$(this.promise_dirname)/data/guacamole_proxy.mustache";
       "site_data[guac][document_root]" string => "$(apache_root_dir)/guacamole/public_html/";
       "site_data[guac][custom_apache_log]" string => "/var/log/apache2/guac.log";
 
@@ -281,6 +276,7 @@ bundle agent manage_certbot(params, site, action)
     ## SET CERTBOT CONFIGURATION FROM TEMPLATE
       "$($(params).certbot_config_file)"
         create => "true",
+        template_method => "mustache",
         edit_template => "$($(params).certbot_config_template)",
 	action => if_elapsed("60"),
         classes => results("bundle", "certbot_config"),
@@ -368,6 +364,7 @@ bundle agent generate_site_files(params, site)
 
       "$(site_cache)"
         create => "true",
+        template_method => "mustache",
         edit_template => "$(site_template)",
         classes => results("bundle", "site_conf_cache"),
       	comment => "expand site cached file using template in this promise dir";
