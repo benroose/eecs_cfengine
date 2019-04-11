@@ -121,4 +121,11 @@
         "role": "security",
         "owner": "Sergio Salinas",
     },
+    "wh_331_6528_12": {
+	"machine": "workstation",
+	"purpose": "research",
+        "role": "security",
+        "owner": "Sergio Salinas",
+	"custom_packages": [ "matlab_research", ],
+    },
 }
