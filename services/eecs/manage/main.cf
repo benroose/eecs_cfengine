@@ -47,5 +47,4 @@ bundle agent manage_main
     reboot_allowed::
       "check if a reboot is required after upgrades only if rebooting is allowed via cron_scheduler"
 	usebundle => reboot_required;
-      
 }
